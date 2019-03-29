@@ -1,54 +1,58 @@
 #include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
 #include<pthread.h>
-#include<semaphore.h>
 
-sem_t mutex,writeblock;
-int data = 0,rcount = 0;
+pthread_mutex_t l,l1;
+int value = 0,reader_count = 0;
 
-void *reader(void *arg)
+void *for_reader(void *arg)
 {
-  int f;
-  f = ((int)arg);
-  sem_wait(&mutex);
-  rcount = rcount + 1;
-  if(rcount==1)
-   sem_wait(&writeblock);
-  sem_post(&mutex);
-  printf("Data read by the reader%d is %d\n",f,data);
-  sleep(1);
-  sem_wait(&mutex);
-  rcount = rcount - 1;
-  if(rcount==0)
-   sem_post(&writeblock);
-  sem_post(&mutex);
+  int s;
+  s = atoi(arg);
+  sleep(5);
+  //pthread_mutex_lock(&l);
+  reader_count = reader_count + 1;
+  if(reader_count==1)
+   pthread_mutex_lock(&l1);
+  //pthread_mutex_unlock(&l);
+  printf("Data read by the reader %d is %d and the number of readers are %d when reader is reading\n",s,value,reader_count);
+  //sleep(1);
+  //pthread_mutex_lock(&l);
+  reader_count = reader_count - 1;
+  if(reader_count==0)
+   pthread_mutex_unlock(&l1);
+  //pthread_mutex_unlock(&l);
 }
 
-void *writer(void *arg)
+void *for_writer(void *arg)
 {
-  int f;
-  f = ((int) arg);
-  sem_wait(&writeblock);
-  data++;
-  printf("Data writen by the writer%d is %d\n",f,data);
-  sleep(1);
-  sem_post(&writeblock);
+  int m;
+  m = atoi(arg);
+  pthread_mutex_lock(&l1);
+  //pthread_mutex_lock(&l);
+  value++;
+  printf("Data writen by the writer%d is %d\n",m,value);
+  printf("The number of readers are %d when writer is writing\n",reader_count);
+  //pthread_mutex_unlock(&l);
+  pthread_mutex_unlock(&l1);
 }
 
 int main()
 {
   int i,b; 
-  pthread_t rtid[5],wtid[5];
-  sem_init(&mutex,0,1);
-  sem_init(&writeblock,0,1);
+  pthread_t reader[5],writer[5];
+  pthread_mutex_init(&l,NULL);
+  pthread_mutex_init(&l1,NULL);
   for(i=0;i<=2;i++)
   {
-    pthread_create(&wtid[i],NULL,writer,(void *)i);
-    pthread_create(&rtid[i],NULL,reader,(void *)i);
+    pthread_create(&writer[i],NULL,for_writer,&i);
+    pthread_create(&reader[i],NULL,for_reader,&i);
   }
   for(i=0;i<=2;i++)
   {
-    pthread_join(wtid[i],NULL);
-    pthread_join(rtid[i],NULL);
+    pthread_join(writer[i],NULL);
+    pthread_join(reader[i],NULL);
   }
   return 0;
 }
